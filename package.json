@@ -1,0 +1,22 @@
+{
+  "name": "hr-manager",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "services/resume-service",
+    "services/vacancy-service",
+    "services/matching-service",
+    "gateway",
+    "web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev": "tsx scripts/dev.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
