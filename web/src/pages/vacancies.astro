@@ -1,0 +1,98 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout title="Вакансии">
+  <h1>Вакансии</h1>
+  <div class="toolbar">
+    <input id="search" placeholder="Поиск" />
+    <input id="company" placeholder="Компания" />
+    <input id="skill" placeholder="Навык" />
+    <input id="maxSalary" type="number" min="0" placeholder="Зарплата до" />
+    <button id="find">Найти</button>
+  </div>
+  <div id="status" class="status"></div>
+  <div id="list" class="grid"></div>
+
+  <h2>Создание вакансии</h2>
+  <form id="form" class="grid-form">
+    <label>Название должности<input name="title" required /></label>
+    <label>Компания<input name="company" required /></label>
+    <label>Минимальный опыт, лет<input name="minExperience" type="number" min="0" max="60" required /></label>
+    <label>Зарплата<input name="salary" type="number" min="0" required /></label>
+    <label class="wide">Описание<textarea name="description" required></textarea></label>
+    <label class="wide">Требуемые навыки (через запятую)<input name="requiredSkills" required /></label>
+    <button class="wide" type="submit">Создать вакансию</button>
+  </form>
+
+  <script>
+    const api = import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000/graphql";
+    async function graph(query: string, variables = {}) {
+      const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, variables }) });
+      const result = await response.json();
+      if (result.errors) throw new Error(result.errors.map((item: {message:string}) => item.message).join("; "));
+      return result.data;
+    }
+    const list = document.querySelector("#list")!;
+    const status = document.querySelector("#status")!;
+    async function load() {
+      status.textContent = "Загрузка...";
+      try {
+        const args = {
+          search: (document.querySelector("#search") as HTMLInputElement).value || null,
+          company: (document.querySelector("#company") as HTMLInputElement).value || null,
+          skill: (document.querySelector("#skill") as HTMLInputElement).value || null,
+          maxSalary: Number((document.querySelector("#maxSalary") as HTMLInputElement).value) || null
+        };
+        const data = await graph(`query($search:String,$company:String,$skill:String,$maxSalary:Float){vacancies(search:$search,company:$company,skill:$skill,maxSalary:$maxSalary){id title company description requiredSkills minExperience salary}}`, args);
+        const vacancies = data.vacancies as any[];
+        list.innerHTML = vacancies.length ? vacancies.map((vacancy) => `
+          <article class="card"><h3>${vacancy.title}</h3><p><strong>${vacancy.company}</strong></p>
+          <p class="muted">${vacancy.description}</p>
+          <p>Опыт: от ${vacancy.minExperience} лет<br>Навыки: ${vacancy.requiredSkills.join(", ")}</p>
+          <p>Условия: ${vacancy.salary.toLocaleString("ru-RU")} ₽</p>
+          <div class="actions"><a class="button" href="/matching">Подобрать</a><button class="secondary" data-edit="${vacancy.id}">Редактировать</button><button class="danger" data-delete="${vacancy.id}">Удалить</button></div></article>`).join("") : "<p class=\"muted\">Вакансии не найдены.</p>";
+        status.textContent = "";
+      } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
+    }
+    document.querySelector("#find")!.addEventListener("click", load);
+    list.addEventListener("click", async (event) => {
+      const button = (event.target as HTMLElement).closest("[data-delete]") as HTMLElement | null;
+      if (button) {
+        if (!confirm("Удалить вакансию?")) return;
+        await graph(`mutation($id:ID!){deleteVacancy(id:$id)}`, { id: button.dataset.delete });
+        await load();
+        return;
+      }
+      const edit = (event.target as HTMLElement).closest("[data-edit]") as HTMLElement | null;
+      if (!edit) return;
+      const data = await graph(`query($id:ID!){vacancy(id:$id){id title company description requiredSkills minExperience salary}}`, { id: edit.dataset.edit });
+      const vacancy = data.vacancy;
+      const title = prompt("Название должности", vacancy.title);
+      if (title === null) return;
+      const company = prompt("Компания", vacancy.company);
+      const description = prompt("Описание", vacancy.description);
+      const requiredSkills = prompt("Навыки через запятую", vacancy.requiredSkills.join(", "));
+      const minExperience = Number(prompt("Минимальный опыт", String(vacancy.minExperience)));
+      const salary = Number(prompt("Зарплата", String(vacancy.salary)));
+      if ([company, description, requiredSkills].includes(null)) return;
+      const input = { title, company, description, minExperience, salary, requiredSkills: requiredSkills!.split(",").map((skill: string) => skill.trim()).filter(Boolean) };
+      try {
+        await graph(`mutation($id:ID!, $input:VacancyInput!){updateVacancy(id:$id,input:$input){id}}`, { id: edit.dataset.edit, input });
+        status.className = "status"; status.textContent = "Вакансия обновлена."; await load();
+      } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
+    });
+    document.querySelector("#form")!.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.target as HTMLFormElement;
+      const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+      const input = { title: values.title, company: values.company, description: values.description,
+        requiredSkills: values.requiredSkills.split(",").map((skill) => skill.trim()).filter(Boolean),
+        minExperience: Number(values.minExperience), salary: Number(values.salary) };
+      try {
+        await graph(`mutation($input:VacancyInput!){createVacancy(input:$input){id}}`, { input });
+        status.className = "status"; status.textContent = "Вакансия создана."; form.reset(); await load();
+      } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
+    });
+    load();
+  </script>
+</Layout>

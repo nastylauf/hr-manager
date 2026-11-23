@@ -1,0 +1,43 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout title="Подбор кандидатов">
+  <h1>Подбор кандидатов</h1>
+  <div class="toolbar">
+    <select id="vacancy"><option value="">Выберите вакансию</option></select>
+    <button id="calculate">Запустить сопоставление</button>
+  </div>
+  <div id="status" class="status"></div>
+  <div id="list" class="grid"></div>
+  <script>
+    const api = import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000/graphql";
+    async function graph(query: string, variables = {}) {
+      const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, variables }) });
+      const result = await response.json();
+      if (result.errors) throw new Error(result.errors.map((item: {message:string}) => item.message).join("; "));
+      return result.data;
+    }
+    const vacancy = document.querySelector("#vacancy") as HTMLSelectElement;
+    const status = document.querySelector("#status")!;
+    const list = document.querySelector("#list")!;
+    async function loadVacancies() {
+      const data = await graph(`{vacancies{ id title company }}`);
+      vacancy.insertAdjacentHTML("beforeend", data.vacancies.map((item: any) => `<option value="${item.id}">${item.title} — ${item.company}</option>`).join(""));
+    }
+    document.querySelector("#calculate")!.addEventListener("click", async () => {
+      if (!vacancy.value) { status.className = "status error"; status.textContent = "Выберите вакансию."; return; }
+      status.className = "status"; status.textContent = "Выполняется сопоставление...";
+      try {
+        const data = await graph(`mutation($vacancyId:ID!){calculateMatches(vacancyId:$vacancyId){id score matchedSkills resumeId resume{fullName position skills experience email}}}`, { vacancyId: vacancy.value });
+        const matches = data.calculateMatches as any[];
+        list.innerHTML = matches.length ? matches.map((match) => `<article class="card"><h3>${match.resume.fullName}</h3>
+          <p><strong>${match.resume.position}</strong></p><p>Соответствие: <strong>${match.score}%</strong></p>
+          <p class="muted">Совпавшие навыки: ${match.matchedSkills.join(", ") || "нет"}</p>
+          <p>Опыт: ${match.resume.experience} лет<br>${match.resume.email}</p>
+          <a class="button" href="/matching-result?vacancyId=${vacancy.value}">Подробнее</a></article>`).join("") : "<p class=\"muted\">Подходящих резюме нет.</p>";
+        status.textContent = `Проверено кандидатов: ${matches.length}`;
+      } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
+    });
+    loadVacancies();
+  </script>
+</Layout>

@@ -1,0 +1,102 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout title="Резюме">
+  <h1>Резюме</h1>
+  <div class="toolbar">
+    <input id="search" placeholder="Поиск по ФИО или должности" />
+    <input id="position" placeholder="Желаемая должность" />
+    <input id="skill" placeholder="Навык" />
+    <input id="minExperience" type="number" min="0" placeholder="Опыт от, лет" />
+    <input id="maxSalary" type="number" min="0" placeholder="Зарплата до" />
+    <button id="find">Найти</button>
+  </div>
+  <div id="status" class="status"></div>
+  <div id="list" class="grid"></div>
+
+  <h2>Создание резюме</h2>
+  <form id="form" class="grid-form">
+    <label>ФИО<input name="fullName" required /></label>
+    <label>Email<input name="email" type="email" required /></label>
+    <label>Телефон<input name="phone" required /></label>
+    <label>Желаемая должность<input name="position" required /></label>
+    <label>Опыт, лет<input name="experience" type="number" min="0" max="60" required /></label>
+    <label>Зарплатные ожидания<input name="salary" type="number" min="0" required /></label>
+    <label class="wide">Навыки (через запятую)<input name="skills" required /></label>
+    <button class="wide" type="submit">Создать резюме</button>
+  </form>
+
+  <script>
+    const api = import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000/graphql";
+    async function graph(query: string, variables = {}) {
+      const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, variables }) });
+      const result = await response.json();
+      if (result.errors) throw new Error(result.errors.map((item: {message:string}) => item.message).join("; "));
+      return result.data;
+    }
+    const list = document.querySelector("#list")!;
+    const status = document.querySelector("#status")!;
+    async function load() {
+      status.textContent = "Загрузка...";
+      try {
+        const args = {
+          search: (document.querySelector("#search") as HTMLInputElement).value || null,
+          position: (document.querySelector("#position") as HTMLInputElement).value || null,
+          skill: (document.querySelector("#skill") as HTMLInputElement).value || null,
+          minExperience: Number((document.querySelector("#minExperience") as HTMLInputElement).value) || null,
+          maxSalary: Number((document.querySelector("#maxSalary") as HTMLInputElement).value) || null
+        };
+        const data = await graph(`query($search:String,$position:String,$skill:String,$minExperience:Int,$maxSalary:Float){resumes(search:$search,position:$position,skill:$skill,minExperience:$minExperience,maxSalary:$maxSalary){id fullName email phone position experience skills salary}}`, args);
+        const resumes = data.resumes as any[];
+        list.innerHTML = resumes.length ? resumes.map((resume) => `
+          <article class="card"><h3>${resume.fullName}</h3><p><strong>${resume.position}</strong></p>
+          <p class="muted">${resume.email}<br>${resume.phone}</p>
+          <p>Опыт: ${resume.experience} лет<br>Навыки: ${resume.skills.join(", ")}</p>
+          <p>Ожидания: ${resume.salary.toLocaleString("ru-RU")} ₽</p>
+          <div class="actions"><button class="secondary" data-edit="${resume.id}">Редактировать</button><button class="danger" data-delete="${resume.id}">Удалить</button></div></article>`).join("") : "<p class=\"muted\">Резюме не найдены.</p>";
+        status.textContent = "";
+      } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
+    }
+    document.querySelector("#find")!.addEventListener("click", load);
+    list.addEventListener("click", async (event) => {
+      const button = (event.target as HTMLElement).closest("[data-delete]") as HTMLElement | null;
+      if (button) {
+        if (!confirm("Удалить резюме?")) return;
+        await graph(`mutation($id:ID!){deleteResume(id:$id)}`, { id: button.dataset.delete });
+        await load();
+        return;
+      }
+      const edit = (event.target as HTMLElement).closest("[data-edit]") as HTMLElement | null;
+      if (!edit) return;
+      const data = await graph(`query($id:ID!){resume(id:$id){id fullName email phone position experience skills salary}}`, { id: edit.dataset.edit });
+      const resume = data.resume;
+      const fullName = prompt("ФИО", resume.fullName);
+      if (fullName === null) return;
+      const position = prompt("Желаемая должность", resume.position);
+      const email = prompt("Email", resume.email);
+      const phone = prompt("Телефон", resume.phone);
+      const experience = Number(prompt("Опыт, лет", String(resume.experience)));
+      const salary = Number(prompt("Зарплата", String(resume.salary)));
+      const skills = prompt("Навыки через запятую", resume.skills.join(", "));
+      if ([fullName, position, email, phone, skills].includes(null)) return;
+      const input = { fullName, position, email, phone, experience, salary, skills: skills!.split(",").map((skill: string) => skill.trim()).filter(Boolean) };
+      try {
+        await graph(`mutation($id:ID!, $input:ResumeInput!){updateResume(id:$id,input:$input){id}}`, { id: edit.dataset.edit, input });
+        status.className = "status"; status.textContent = "Резюме обновлено."; await load();
+      } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
+    });
+    document.querySelector("#form")!.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.target as HTMLFormElement;
+      const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+      const input = { fullName: values.fullName, email: values.email, phone: values.phone, position: values.position,
+        experience: Number(values.experience), skills: values.skills.split(",").map((skill) => skill.trim()).filter(Boolean), salary: Number(values.salary) };
+      try {
+        await graph(`mutation($input:ResumeInput!){createResume(input:$input){id}}`, { input });
+        status.className = "status"; status.textContent = "Резюме создано.";
+        form.reset(); await load();
+      } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
+    });
+    load();
+  </script>
+</Layout>

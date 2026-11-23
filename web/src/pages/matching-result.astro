@@ -1,0 +1,35 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout title="Результаты подбора">
+  <h1>Результаты подбора</h1>
+  <div id="status" class="status"></div>
+  <div id="list" class="grid"></div>
+  <script>
+    const api = import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000/graphql";
+    async function graph(query, variables = {}) {
+      const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, variables }) });
+      const result = await response.json();
+      if (result.errors) throw new Error(result.errors[0].message);
+      return result.data;
+    }
+    const status = document.querySelector("#status");
+    const list = document.querySelector("#list");
+    const vacancyId = new URLSearchParams(location.search).get("vacancyId");
+    async function load() {
+      if (!vacancyId) {
+        status.textContent = "Выберите вакансию на странице подбора.";
+        return;
+      }
+      status.textContent = "Загрузка...";
+      const data = await graph(`query($vacancyId:ID!){matches(vacancyId:$vacancyId){score matchedSkills resumeId resume{fullName position experience skills email phone}}}`, { vacancyId });
+      const matches = data.matches;
+      list.innerHTML = matches.length ? matches.map((match) => `<article class="card"><h3>${match.resume.fullName}</h3>
+        <p><strong>${match.resume.position}</strong></p><p>Соответствие: <strong>${match.score}%</strong></p>
+        <p>Совпавшие навыки: ${match.matchedSkills.join(", ") || "нет"}</p>
+        <p class="muted">${match.resume.email}<br>${match.resume.phone}<br>Опыт: ${match.resume.experience} лет</p></article>`).join("") : "<p class=\"muted\">Результаты отсутствуют. Запустите сопоставление.</p>";
+      status.textContent = "";
+    }
+    load();
+  </script>
+</Layout>
