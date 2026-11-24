@@ -13,6 +13,13 @@ docker compose up --build
 
 Данные MongoDB сохраняются в volume `mongo_data`.
 
+Страницы интерфейса:
+
+- Резюме: http://localhost:4321/resumes
+- Вакансии: http://localhost:4321/vacancies
+- Добавление вакансии: http://localhost:4321/vacancies/new
+- Подбор кандидатов: http://localhost:4321/matching
+
 ## Локальная разработка
 
 Один MongoDB должен быть доступен по адресу из `.env.example`, либо запустите только MongoDB:

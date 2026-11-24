@@ -5,6 +5,7 @@ import Layout from "../layouts/Layout.astro";
   <div class="page-heading">
     <h1>Вакансии</h1>
     <p>Требования работодателей и открытые позиции для поиска подходящих кандидатов.</p>
+    <a class="button" href="/vacancies/new">Добавить вакансию <span aria-hidden="true">+</span></a>
   </div>
   <div class="toolbar">
     <input id="search" placeholder="Поиск" />
@@ -15,17 +16,6 @@ import Layout from "../layouts/Layout.astro";
   </div>
   <div id="status" class="status"></div>
   <div id="list" class="grid"></div>
-
-  <h2>Добавить вакансию</h2>
-  <form id="form" class="grid-form">
-    <label>Название должности<input name="title" required /></label>
-    <label>Компания<input name="company" required /></label>
-    <label>Минимальный опыт, лет<input name="minExperience" type="number" min="0" max="60" required /></label>
-    <label>Зарплата<input name="salary" type="number" min="0" required /></label>
-    <label class="wide">Описание<textarea name="description" required></textarea></label>
-    <label class="wide">Требуемые навыки (через запятую)<input name="requiredSkills" required /></label>
-    <button class="wide" type="submit">Создать вакансию</button>
-  </form>
 
   <script>
     const api = import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000/graphql";
@@ -84,18 +74,15 @@ import Layout from "../layouts/Layout.astro";
         status.className = "status"; status.textContent = "Вакансия обновлена."; await load();
       } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
     });
-    document.querySelector("#form")!.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const form = event.target as HTMLFormElement;
-      const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
-      const input = { title: values.title, company: values.company, description: values.description,
-        requiredSkills: values.requiredSkills.split(",").map((skill) => skill.trim()).filter(Boolean),
-        minExperience: Number(values.minExperience), salary: Number(values.salary) };
-      try {
-        await graph(`mutation($input:VacancyInput!){createVacancy(input:$input){id}}`, { input });
-        status.className = "status"; status.textContent = "Вакансия создана."; form.reset(); await load();
-      } catch (error) { status.className = "status error"; status.textContent = (error as Error).message; }
-    });
     load();
   </script>
 </Layout>
+
+<style>
+  .page-heading { position: relative; padding-right: 210px; }
+  .page-heading > .button { position: absolute; right: 0; bottom: 4px; }
+  @media (max-width: 600px) {
+    .page-heading { padding-right: 0; }
+    .page-heading > .button { position: static; margin-top: 16px; }
+  }
+</style>

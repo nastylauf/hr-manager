@@ -1,0 +1,81 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+<Layout title="Добавить вакансию">
+  <div class="page-heading">
+    <a class="back-link" href="/vacancies">← Все вакансии</a>
+    <h1>Новая вакансия</h1>
+    <p>Заполните требования и условия, чтобы сохранить позицию и подобрать кандидатов.</p>
+  </div>
+
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+  <form id="form" class="grid-form">
+    <label>Название должности<input name="title" autocomplete="organization-title" required /></label>
+    <label>Компания<input name="company" autocomplete="organization" required /></label>
+    <label>Минимальный опыт, лет<input name="minExperience" type="number" min="0" max="60" required /></label>
+    <label>Зарплата, ₽<input name="salary" type="number" min="0" required /></label>
+    <label class="wide">Описание<textarea name="description" required></textarea></label>
+    <label class="wide">Требуемые навыки (через запятую)<input name="requiredSkills" placeholder="Например: TypeScript, MongoDB" required /></label>
+    <div class="form-actions wide">
+      <a class="button secondary-link" href="/vacancies">Отмена</a>
+      <button type="submit">Сохранить вакансию</button>
+    </div>
+  </form>
+
+  <script>
+    const api = import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000/graphql";
+    const form = document.querySelector("#form") as HTMLFormElement;
+    const status = document.querySelector("#status")!;
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submit = form.querySelector<HTMLButtonElement>("button[type='submit']")!;
+      submit.disabled = true;
+      status.className = "status";
+      status.textContent = "Сохраняем вакансию...";
+
+      const values = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
+      const input = {
+        title: values.title,
+        company: values.company,
+        description: values.description,
+        requiredSkills: values.requiredSkills.split(",").map((skill) => skill.trim()).filter(Boolean),
+        minExperience: Number(values.minExperience),
+        salary: Number(values.salary)
+      };
+
+      try {
+        const response = await fetch(api, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: "mutation($input:VacancyInput!){createVacancy(input:$input){id}}",
+            variables: { input }
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || result.errors) {
+          throw new Error(result.errors?.map((error: { message: string }) => error.message).join("; ") ?? `Ошибка сервера (${response.status})`);
+        }
+
+        status.className = "status success";
+        status.textContent = "Вакансия сохранена. Можно добавить ещё одну или вернуться к списку.";
+        form.reset();
+      } catch (error) {
+        status.className = "status error";
+        status.textContent = `Не удалось сохранить вакансию: ${(error as Error).message}`;
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  </script>
+</Layout>
+
+<style>
+  .back-link { display: inline-block; margin-bottom: 14px; color: #4263eb; font-size: 13px; font-weight: 650; text-decoration: none; }
+  .back-link:hover { color: #3452d1; }
+  .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+  .secondary-link { border-color: #e2e7f0; background: #f7f8fc; color: #263754; }
+  .secondary-link:hover { background: #edf1ff; color: #3452d1; }
+  .status.success { color: #16836d; }
+</style>
