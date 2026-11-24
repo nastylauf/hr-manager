@@ -2,7 +2,10 @@
 import Layout from "../layouts/Layout.astro";
 ---
 <Layout title="Вакансии">
-  <h1>Вакансии</h1>
+  <div class="page-heading">
+    <h1>Вакансии</h1>
+    <p>Требования работодателей и открытые позиции для поиска подходящих кандидатов.</p>
+  </div>
   <div class="toolbar">
     <input id="search" placeholder="Поиск" />
     <input id="company" placeholder="Компания" />
@@ -13,7 +16,7 @@ import Layout from "../layouts/Layout.astro";
   <div id="status" class="status"></div>
   <div id="list" class="grid"></div>
 
-  <h2>Создание вакансии</h2>
+  <h2>Добавить вакансию</h2>
   <form id="form" class="grid-form">
     <label>Название должности<input name="title" required /></label>
     <label>Компания<input name="company" required /></label>

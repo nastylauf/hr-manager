@@ -2,14 +2,29 @@
 import Layout from "../layouts/Layout.astro";
 ---
 <Layout title="Результаты подбора">
-  <h1>Результаты подбора</h1>
+  <div class="page-heading">
+    <h1>Результаты подбора</h1>
+    <p>Кандидаты, отсортированные по уровню соответствия выбранной вакансии.</p>
+  </div>
   <div id="status" class="status"></div>
   <div id="list" class="grid"></div>
   <script>
+    interface MatchResult {
+      score: number;
+      matchedSkills: string[];
+      resume: {
+        fullName: string;
+        position: string;
+        experience: number;
+        email: string;
+        phone: string;
+      };
+    }
+
     const api = import.meta.env.PUBLIC_API_URL ?? "http://localhost:4000/graphql";
-    async function graph(query, variables = {}) {
+    async function graph<T>(query: string, variables: Record<string, string> = {}): Promise<T> {
       const response = await fetch(api, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, variables }) });
-      const result = await response.json();
+      const result = await response.json() as { data: T; errors?: Array<{ message: string }> };
       if (result.errors) throw new Error(result.errors[0].message);
       return result.data;
     }
@@ -21,14 +36,20 @@ import Layout from "../layouts/Layout.astro";
         status.textContent = "Выберите вакансию на странице подбора.";
         return;
       }
+      status.className = "status";
       status.textContent = "Загрузка...";
-      const data = await graph(`query($vacancyId:ID!){matches(vacancyId:$vacancyId){score matchedSkills resumeId resume{fullName position experience skills email phone}}}`, { vacancyId });
-      const matches = data.matches;
-      list.innerHTML = matches.length ? matches.map((match) => `<article class="card"><h3>${match.resume.fullName}</h3>
-        <p><strong>${match.resume.position}</strong></p><p>Соответствие: <strong>${match.score}%</strong></p>
-        <p>Совпавшие навыки: ${match.matchedSkills.join(", ") || "нет"}</p>
-        <p class="muted">${match.resume.email}<br>${match.resume.phone}<br>Опыт: ${match.resume.experience} лет</p></article>`).join("") : "<p class=\"muted\">Результаты отсутствуют. Запустите сопоставление.</p>";
-      status.textContent = "";
+      try {
+        const data = await graph<{ matches: MatchResult[] }>(`query($vacancyId:ID!){matches(vacancyId:$vacancyId){score matchedSkills resumeId resume{fullName position experience skills email phone}}}`, { vacancyId });
+        const matches = data.matches;
+        list.innerHTML = matches.length ? matches.map((match) => `<article class="card"><h3>${match.resume.fullName}</h3>
+          <p><strong>${match.resume.position}</strong></p><p>Соответствие: <strong>${match.score}%</strong></p>
+          <p>Совпавшие навыки: ${match.matchedSkills.join(", ") || "нет"}</p>
+          <p class="muted">${match.resume.email}<br>${match.resume.phone}<br>Опыт: ${match.resume.experience} лет</p></article>`).join("") : "<p class=\"muted\">Результаты отсутствуют. Запустите сопоставление.</p>";
+        status.textContent = "";
+      } catch (error) {
+        status.className = "status error";
+        status.textContent = `Не удалось загрузить результаты: ${(error as Error).message}`;
+      }
     }
     load();
   </script>

@@ -2,7 +2,10 @@
 import Layout from "../layouts/Layout.astro";
 ---
 <Layout title="Резюме">
-  <h1>Резюме</h1>
+  <div class="page-heading">
+    <h1>База резюме</h1>
+    <p>Профили кандидатов и быстрый поиск по навыкам, опыту и зарплатным ожиданиям.</p>
+  </div>
   <div class="toolbar">
     <input id="search" placeholder="Поиск по ФИО или должности" />
     <input id="position" placeholder="Желаемая должность" />
@@ -14,7 +17,7 @@ import Layout from "../layouts/Layout.astro";
   <div id="status" class="status"></div>
   <div id="list" class="grid"></div>
 
-  <h2>Создание резюме</h2>
+  <h2>Добавить кандидата</h2>
   <form id="form" class="grid-form">
     <label>ФИО<input name="fullName" required /></label>
     <label>Email<input name="email" type="email" required /></label>

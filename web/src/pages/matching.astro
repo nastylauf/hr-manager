@@ -2,7 +2,10 @@
 import Layout from "../layouts/Layout.astro";
 ---
 <Layout title="Подбор кандидатов">
-  <h1>Подбор кандидатов</h1>
+  <div class="page-heading">
+    <h1>Подбор кандидатов</h1>
+    <p>Сравните кандидатов с требованиями вакансии по навыкам и опыту работы.</p>
+  </div>
   <div class="toolbar">
     <select id="vacancy"><option value="">Выберите вакансию</option></select>
     <button id="calculate">Запустить сопоставление</button>
@@ -21,8 +24,17 @@ import Layout from "../layouts/Layout.astro";
     const status = document.querySelector("#status")!;
     const list = document.querySelector("#list")!;
     async function loadVacancies() {
-      const data = await graph(`{vacancies{ id title company }}`);
-      vacancy.insertAdjacentHTML("beforeend", data.vacancies.map((item: any) => `<option value="${item.id}">${item.title} — ${item.company}</option>`).join(""));
+      try {
+        const data = await graph(`{vacancies{ id title company }}`);
+        vacancy.insertAdjacentHTML("beforeend", data.vacancies.map((item: any) => `<option value="${item.id}">${item.title} — ${item.company}</option>`).join(""));
+        if (!data.vacancies.length) {
+          status.className = "status";
+          status.textContent = "Сначала добавьте вакансию и резюме, чтобы начать подбор.";
+        }
+      } catch (error) {
+        status.className = "status error";
+        status.textContent = `Не удалось загрузить вакансии: ${(error as Error).message}`;
+      }
     }
     document.querySelector("#calculate")!.addEventListener("click", async () => {
       if (!vacancy.value) { status.className = "status error"; status.textContent = "Выберите вакансию."; return; }
