@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resume-service
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: resume-service } }
+  template:
+    metadata: { labels: { app: resume-service } }
+    spec:
+      containers:
+        - name: resume-service
+          image: hr-manager/resume-service:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 4001 }]
+          envFrom:
+            - configMapRef: { name: hr-manager-config }
+          readinessProbe:
+            httpGet: { path: /health, port: 4001 }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: resume-service }
+spec:
+  selector: { app: resume-service }
+  ports: [{ port: 4001, targetPort: 4001 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: vacancy-service }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: vacancy-service } }
+  template:
+    metadata: { labels: { app: vacancy-service } }
+    spec:
+      containers:
+        - name: vacancy-service
+          image: hr-manager/vacancy-service:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 4002 }]
+          envFrom:
+            - configMapRef: { name: hr-manager-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: vacancy-service }
+spec:
+  selector: { app: vacancy-service }
+  ports: [{ port: 4002, targetPort: 4002 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: matching-service }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: matching-service } }
+  template:
+    metadata: { labels: { app: matching-service } }
+    spec:
+      containers:
+        - name: matching-service
+          image: hr-manager/matching-service:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 4003 }]
+          envFrom:
+            - configMapRef: { name: hr-manager-config }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: matching-service }
+spec:
+  selector: { app: matching-service }
+  ports: [{ port: 4003, targetPort: 4003 }]
