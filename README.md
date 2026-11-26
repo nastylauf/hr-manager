@@ -8,17 +8,23 @@
 docker compose up --build
 ```
 
-- Клиент: http://localhost:4321
-- GraphQL: http://localhost:4000/graphql
+### Адреса на компьютере
+
+| Что открыть | Адрес |
+| --- | --- |
+| Сайт | http://localhost:4321 |
+| Резюме | http://localhost:4321/resumes |
+| Вакансии | http://localhost:4321/vacancies |
+| Добавление вакансии | http://localhost:4321/vacancies/new |
+| Подбор кандидатов | http://localhost:4321/matching |
+| GraphQL (через сайт/Nginx) | http://localhost:4321/graphql |
+| GraphQL (напрямую через gateway) | http://localhost:4000/graphql |
+| MongoDB Compass | `mongodb://localhost:27017` |
+| Jenkins | http://localhost:8080 |
+
+GraphQL через сайт использует тот же origin, что и веб-интерфейс. Порты сервисов резюме, вакансий и сопоставления (`4001`, `4002`, `4003`) доступны только внутри сети Docker Compose и с компьютера напрямую не открываются. Jenkins доступен только на локальном компьютере.
 
 Данные MongoDB сохраняются в volume `mongo_data`.
-
-Страницы интерфейса:
-
-- Резюме: http://localhost:4321/resumes
-- Вакансии: http://localhost:4321/vacancies
-- Добавление вакансии: http://localhost:4321/vacancies/new
-- Подбор кандидатов: http://localhost:4321/matching
 
 ## Локальная разработка
 
@@ -47,4 +53,13 @@ kubectl apply -f k8s/services.yaml
 kubectl apply -f k8s/gateway-web.yaml
 ```
 
-Клиент будет доступен через NodePort `30432`, GraphQL — через `30040`.
+После применения манифестов в Kubernetes на Docker Desktop:
+
+| Что открыть | Адрес |
+| --- | --- |
+| Сайт | http://localhost:30432 |
+| Страницы резюме, вакансий и подбора | по тем же путям на порту `30432` |
+| GraphQL через сайт/Nginx | http://localhost:30432/graphql |
+| GraphQL напрямую через gateway | http://localhost:30040/graphql |
+
+MongoDB и внутренние сервисы в Kubernetes не опубликованы на порты компьютера. Чтобы подключить Compass к MongoDB из Kubernetes, отдельно запустите `kubectl port-forward service/mongo 27017:27017`, затем используйте `mongodb://localhost:27017`.
