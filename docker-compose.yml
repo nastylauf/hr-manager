@@ -74,5 +74,46 @@ services:
     depends_on:
       - gateway
 
+  jenkins-docker:
+    image: docker:dind
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command:
+      - --host=tcp://0.0.0.0:2375
+      - --host=unix:///var/run/docker.sock
+    volumes:
+      - jenkins_docker_data:/var/lib/docker
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - jenkins-build
+
+  jenkins:
+    build:
+      context: .
+      dockerfile: docker/jenkins.Dockerfile
+    environment:
+      DOCKER_HOST: tcp://jenkins-docker:2375
+    depends_on:
+      jenkins-docker:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    networks:
+      - jenkins-build
+
 volumes:
   mongo_data:
+  jenkins_home:
+  jenkins_docker_data:
+
+networks:
+  jenkins-build:

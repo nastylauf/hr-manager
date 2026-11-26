@@ -10,6 +10,9 @@ pipeline {
     stage('Установка зависимостей') {
       steps { sh 'npm install' }
     }
+    stage('Сборка shared-пакета') {
+      steps { sh 'npm run build --workspace=@hr-manager/shared' }
+    }
     stage('Проверка TypeScript') {
       steps { sh 'npm run typecheck' }
     }
