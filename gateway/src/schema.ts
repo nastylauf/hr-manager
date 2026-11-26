@@ -91,7 +91,7 @@ export const yoga = createYoga({
       Query: {
         resumes: (_: unknown, args: Record<string, unknown>) => {
           const params = new URLSearchParams();
-          for (const [key, value] of Object.entries(args)) if (value !== undefined) params.set(key, String(value));
+          for (const [key, value] of Object.entries(args)) if (value !== undefined && value !== null) params.set(key, String(value));
           return requestJson(`${resumeUrl}/resumes?${params}`);
         },
         resume: (_: unknown, { id }: { id: string }) => requestJson(`${resumeUrl}/resumes/${id}`),

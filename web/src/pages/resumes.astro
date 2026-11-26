@@ -14,6 +14,7 @@ import Layout from "../layouts/Layout.astro";
     <input id="maxSalary" type="number" min="0" placeholder="Зарплата до" />
     <button id="find">Найти</button>
   </div>
+  <p class="muted">Достаточно указать одно условие. Если заполнено несколько, подойдут резюме с совпадением хотя бы по одному.</p>
   <div id="status" class="status"></div>
   <div id="list" class="grid"></div>
 
@@ -42,12 +43,14 @@ import Layout from "../layouts/Layout.astro";
     async function load() {
       status.textContent = "Загрузка...";
       try {
+        const minExperience = (document.querySelector("#minExperience") as HTMLInputElement).value;
+        const maxSalary = (document.querySelector("#maxSalary") as HTMLInputElement).value;
         const args = {
-          search: (document.querySelector("#search") as HTMLInputElement).value || null,
-          position: (document.querySelector("#position") as HTMLInputElement).value || null,
-          skill: (document.querySelector("#skill") as HTMLInputElement).value || null,
-          minExperience: Number((document.querySelector("#minExperience") as HTMLInputElement).value) || null,
-          maxSalary: Number((document.querySelector("#maxSalary") as HTMLInputElement).value) || null
+          search: (document.querySelector("#search") as HTMLInputElement).value.trim() || null,
+          position: (document.querySelector("#position") as HTMLInputElement).value.trim() || null,
+          skill: (document.querySelector("#skill") as HTMLInputElement).value.trim() || null,
+          minExperience: minExperience === "" ? null : Number(minExperience),
+          maxSalary: maxSalary === "" ? null : Number(maxSalary)
         };
         const data = await graph(`query($search:String,$position:String,$skill:String,$minExperience:Int,$maxSalary:Float){resumes(search:$search,position:$position,skill:$skill,minExperience:$minExperience,maxSalary:$maxSalary){id fullName email phone position experience skills salary}}`, args);
         const resumes = data.resumes as any[];

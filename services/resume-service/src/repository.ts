@@ -14,19 +14,31 @@ export class ResumeRepository {
   }
 
   async list(filters: ResumeFilters = {}): Promise<Resume[]> {
-    const query: Record<string, unknown> = {};
-    if (filters.position) query.position = { $regex: filters.position, $options: "i" };
-    if (filters.skill) query.skills = { $regex: `^${filters.skill}$`, $options: "i" };
-    if (filters.search) {
-      query.$or = [
-        { fullName: { $regex: filters.search, $options: "i" } },
-        { position: { $regex: filters.search, $options: "i" } },
-        { skills: { $regex: filters.search, $options: "i" } }
-      ];
+    const criteria: Record<string, unknown>[] = [];
+    if (filters.position?.trim()) {
+      criteria.push({ position: { $regex: this.escapeRegex(filters.position.trim()), $options: "i" } });
     }
-    if (filters.minExperience !== undefined) query.experience = { $gte: filters.minExperience };
-    if (filters.maxSalary !== undefined) query.salary = { $lte: filters.maxSalary };
+    if (filters.skill?.trim()) {
+      criteria.push({ skills: { $regex: `^${this.escapeRegex(filters.skill.trim())}$`, $options: "i" } });
+    }
+    if (filters.search?.trim()) {
+      const search = this.escapeRegex(filters.search.trim());
+      criteria.push({
+        $or: [
+          { fullName: { $regex: search, $options: "i" } },
+          { position: { $regex: search, $options: "i" } },
+          { skills: { $regex: search, $options: "i" } }
+        ]
+      });
+    }
+    if (filters.minExperience !== undefined) criteria.push({ experience: { $gte: filters.minExperience } });
+    if (filters.maxSalary !== undefined) criteria.push({ salary: { $lte: filters.maxSalary } });
+    const query = criteria.length > 1 ? { $or: criteria } : criteria[0] ?? {};
     return (await this.collection.find(query).sort({ fullName: 1 }).toArray()).map(this.toResume);
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   async findById(id: string): Promise<Resume | null> {
